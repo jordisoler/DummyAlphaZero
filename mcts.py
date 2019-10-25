@@ -4,6 +4,8 @@ from games import GameState, GameOutcomes
 
 
 C_PUCT = 1
+DEFAULT_TAU = 1.0
+MCTS_ITERATIONS = 500
 
 
 class Node:
@@ -74,3 +76,20 @@ class Edge:
             self.node = TerminalNode(new_state, outcome)
             v = self.node.expand()
         return v
+
+
+def mcts(tree: Node, max_iterations=MCTS_ITERATIONS):
+    for _ in range(max_iterations):
+        tree.expand()
+    return compute_pi(tree)
+
+
+def init_tree(initial_state: GameState, nn):
+    ps, _ = nn.evaluate(initial_state)
+    return Node(initial_state, ps, nn)
+
+
+def compute_pi(tree: Node, tau=DEFAULT_TAU):
+    ns = np.array([edge.N for edge in tree.edges])
+    ns_norm = ns**(1/tau)
+    return ns_norm / ns_norm.sum()
