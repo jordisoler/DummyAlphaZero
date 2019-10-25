@@ -30,13 +30,19 @@ class Connect4Board(GameState):
 
     @classmethod
     def init(cls):
-        cls(np.zeros((cls.W, cls.H)), np.zeros((cls.W, cls.H)))
+        return cls(np.zeros((cls.H, cls.W), dtype=int), np.zeros((cls.H, cls.W), dtype=int))
 
     def take_action(self, action):
-        self.player1[self._next_moves_heights()[action], action] = 1
-        return Connect4Board(self.player2, self.player1)
+        next_player1 = self.player2.copy()
+        next_player2 = self.player1.copy()
+
+        next_player2[self._next_moves_heights()[action], action] = 1
+        return Connect4Board(next_player1, next_player2)
 
     def possible_actions(self):
+        return np.arange(7, dtype=int)[self.possible_actions_mask()]
+
+    def possible_actions_mask(self):
         return self._next_moves_heights() != -1
 
     def game_outcome(self, last_move=None):
@@ -69,7 +75,6 @@ class Connect4Board(GameState):
 
 
 def _check_4(arr):
-    print(arr)
     return (
         len(arr) >= 4 and
         sum(arr) >= 4 and
