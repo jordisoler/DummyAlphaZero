@@ -65,7 +65,8 @@ class Connect4Board(GameState):
             _check_4(self.player2[row, :]) or
             _check_4(self.player2[:, col]) or
             _check_4(self.player2.diagonal(col-row)) or
-            _check_4(np.fliplr(self.player2).diagonal(self.W-col-row-1))        )
+            _check_4(np.fliplr(self.player2).diagonal(self.W-col-row-1))
+        )
 
     def is_draw(self):
         return self.player1.sum() + self.player2.sum() == self.W*self.H
