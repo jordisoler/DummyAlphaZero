@@ -5,7 +5,7 @@ from games import GameState, GameOutcomes
 
 C_PUCT = 1
 DEFAULT_TAU = 1.0
-MCTS_ITERATIONS = 500
+MCTS_ITERATIONS = 1500
 
 
 class Node:

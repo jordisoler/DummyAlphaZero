@@ -45,6 +45,11 @@ class Connect4Board(GameState):
     def possible_actions_mask(self):
         return self._next_moves_heights() != -1
 
+    def inverse(self):
+        new_player_2 = self.player1
+        self.player1 = self.player2
+        self.player2 = new_player_2
+
     def game_outcome(self, last_move=None):
         if last_move is None:
             raise NotImplementedError("We only check if final state from last move")
