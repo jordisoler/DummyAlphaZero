@@ -41,7 +41,7 @@ class Connect4Board(GameState):
         return (cls.H, cls.W, 2)
 
     def to_numpy(self):
-        return np.stack([self.player1, self.player2], axis=-1)
+        return np.stack([self.player1, self.player2], axis=-1).astype(np.float32)
 
     def take_action(self, action):
         next_player1 = self.player2.copy()

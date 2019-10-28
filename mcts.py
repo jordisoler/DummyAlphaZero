@@ -5,7 +5,7 @@ from games import GameState, GameOutcomes
 
 C_PUCT = 1
 DEFAULT_TAU = 1.0
-MCTS_ITERATIONS = 1500
+MCTS_ITERATIONS = 200
 
 
 class Node:
@@ -21,8 +21,11 @@ class Node:
 
     def expand(self):
         nominator = np.sqrt(np.sum([edge.N for edge in self.edges]))
-        us = [C_PUCT * edge.P * nominator / (1 + edge.N) for edge in self.edges]
-        best_action_idx = np.argmax([edge.Q + ui for ui, edge in zip(us, self.edges)])
+        if len(self.edges) > 1:
+            us = [C_PUCT * edge.P * nominator / (1 + edge.N) for edge in self.edges]
+            best_action_idx = np.argmax([edge.Q + ui for ui, edge in zip(us, self.edges)])
+        else:
+            best_action_idx = 0
 
         return self.edges[best_action_idx].expand()
 
@@ -70,7 +73,7 @@ class Edge:
         outcome = new_state.game_outcome(last_move=self.action)
 
         if outcome is None:
-            ps, v = self.nn.evaluate(new_state)
+            ps, v = self.nn.predict_from_state(new_state)
             self.node = Node(new_state, ps, self.nn)
         else:
             self.node = TerminalNode(new_state, outcome)
@@ -85,11 +88,13 @@ def mcts(tree: Node, max_iterations=MCTS_ITERATIONS):
 
 
 def init_tree(initial_state: GameState, nn):
-    ps, _ = nn.evaluate(initial_state)
+    ps, _ = nn.predict_from_state(initial_state)
     return Node(initial_state, ps, nn)
 
 
 def compute_pi(tree: Node, tau=DEFAULT_TAU):
     ns = np.array([edge.N for edge in tree.edges])
     ns_norm = ns**(1/tau)
-    return ns_norm / ns_norm.sum()
+    pi = np.zeros(tree.state.action_space_size())
+    pi[tree.state.possible_actions_mask()] = ns_norm / ns_norm.sum()
+    return pi

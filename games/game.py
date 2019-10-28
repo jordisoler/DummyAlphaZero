@@ -1,5 +1,7 @@
 from enum import Enum, auto
 
+import numpy as np
+
 
 class GameOutcomes(Enum):
     WIN = auto()
@@ -32,7 +34,7 @@ class GameState:
         raise NotImplementedError
 
     def action_space_mask(self):
-        return self.possible_actions_mask().astype(int)
+        return self.possible_actions_mask().astype(np.float32)
 
     def game_outcome(self):
         """

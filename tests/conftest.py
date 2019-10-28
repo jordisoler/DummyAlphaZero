@@ -38,7 +38,7 @@ class CounterGameNN:
     def __init__(self, probability=0.4):
         self.probability = probability
 
-    def evaluate(self, state: CounterGame, **kwargs):
+    def predict_from_state(self, state: CounterGame, **kwargs):
         ps = [self.probability, 1-self.probability]
         v = 0.5
         return ps, v

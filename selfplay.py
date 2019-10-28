@@ -45,8 +45,18 @@ def selfplay(nn, game: GameState, **game_args):
     else:
         raise Exception('Invalid game outcome: {}'.format(game_outcome))
 
-    nn.train(states, [optimal_pis, z])
+    nn.fit_game_state(states, optimal_pis, z)
 
 
 def sample_edge(tree, optimal_pi):
-    return np.random.choice(tree.edges, p=optimal_pi)
+    masked_optimal_pi = optimal_pi[tree.state.possible_actions_mask()]
+    return np.random.choice(tree.edges, p=masked_optimal_pi)
+
+
+if __name__ == "__main__":
+    from games import Connect4Board
+
+    from neural_network import new_model
+
+    nn = new_model(Connect4Board)
+    selfplay(nn, Connect4Board)
