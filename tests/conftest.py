@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from games import GameState, GameOutcomes
 
@@ -62,3 +63,9 @@ def counter_game_nn():
 @pytest.fixture
 def counter_game_optimal_nn():
     return CounterGameOptimalNN
+
+
+@pytest.fixture
+def np_random():
+    np.random.seed(11)
+    return np.random

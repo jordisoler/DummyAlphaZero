@@ -28,6 +28,12 @@ class GameState:
     def possible_actions(self):
         raise NotImplementedError
 
+    def possible_actions_mask(self):
+        raise NotImplementedError
+
+    def action_space_mask(self):
+        return self.possible_actions_mask().astype(int)
+
     def game_outcome(self):
         """
         Check if this is a terminal state and get the corresponding game outcomeself.

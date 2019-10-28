@@ -32,6 +32,17 @@ class Connect4Board(GameState):
     def init(cls):
         return cls(np.zeros((cls.H, cls.W), dtype=int), np.zeros((cls.H, cls.W), dtype=int))
 
+    @classmethod
+    def action_space_size(cls):
+        return cls.W
+
+    @classmethod
+    def shape(cls):
+        return (cls.H, cls.W, 2)
+
+    def to_numpy(self):
+        return np.stack([self.player1, self.player2], axis=-1)
+
     def take_action(self, action):
         next_player1 = self.player2.copy()
         next_player2 = self.player1.copy()
