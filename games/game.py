@@ -21,6 +21,9 @@ class GameState:
         Create the initial game state
         """
 
+    def __hash__(self):
+        raise NotImplementedError
+
     def take_action(self, action):
         """
         Define the state transition after a given action

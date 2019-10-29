@@ -269,5 +269,41 @@ def test_take_action(state, action, new_state):
     assert (updated_p2 == new_p2).all()
 
 
+@pytest.mark.parametrize('state1, state2', [
+    (
+        np.array([
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0],
+            [2, 0, 0, 2, 0, 0, 0],
+            [1, 0, 0, 2, 1, 0, 0],
+            [2, 0, 2, 1, 1, 1, 2],
+        ]),
+        np.array([
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0, 0, 0],
+            [2, 0, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 1, 0, 0],
+            [2, 0, 2, 0, 1, 1, 2],
+        ]),
+    ),
+])
+def test_hash(state1, state2):
+    p1_1, p2_1 = _test_state_to_valid_matrices(state1)
+    p1_2, p2_2 = _test_state_to_valid_matrices(state2)
+
+    board = core.Connect4Board(p1_1, p2_1)
+    board_bis = core.Connect4Board(p1_1, p2_1)
+
+    board_2 = core.Connect4Board(p1_2, p2_2)
+    board_2_bis = core.Connect4Board(p1_2, p2_2)
+
+    assert hash(board) == hash(board_bis)
+    assert hash(board_2) == hash(board_2_bis)
+    assert hash(board) != hash(board_2)
+    assert hash(board_bis) != hash(board_2)
+
+
 def _test_state_to_valid_matrices(state):
     return 1*(state == 1), 1*(state == 2)

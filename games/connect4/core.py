@@ -28,6 +28,14 @@ class Connect4Board(GameState):
         out.append(out[0])
         return '\n'.join(out)
 
+    def __hash__(self):
+        pow2 = 2**np.arange(self.W*self.H)
+
+        def _matrix_to_num(matrix):
+            return (pow2*matrix.flatten()).sum()
+
+        return hash((_matrix_to_num(self.player1), _matrix_to_num(self.player2)))
+
     @classmethod
     def init(cls):
         return cls(np.zeros((cls.H, cls.W), dtype=int), np.zeros((cls.H, cls.W), dtype=int))
