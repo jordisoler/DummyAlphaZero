@@ -1,4 +1,5 @@
 import numpy as np
+from time import time
 
 from games import GameState, GameOutcomes
 from mcts import init_tree, mcts
@@ -13,6 +14,7 @@ def selfplay(nn, game: GameState, **game_args):
     tree = init_tree(state, nn)
     turn = -1
 
+    times = [time()]
     while game_outcome is None:
         turn += 1
         if turn % 2:
@@ -30,8 +32,12 @@ def selfplay(nn, game: GameState, **game_args):
         state = tree.state
 
         game_outcome = state.game_outcome(last_move=action)
+        t_i = time()
+        print("Move time: {}".format(t_i - times[-1]))
+        times.append(t_i)
 
     print("Final turn {}".format(turn))
+    print("Total time {}".format(times[-1] - times[0]))
     print(str(state))
     if game_outcome == GameOutcomes.DRAW:
         print("It was a draw!!")
