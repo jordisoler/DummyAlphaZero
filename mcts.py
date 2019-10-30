@@ -2,12 +2,10 @@ from itertools import chain
 
 import numpy as np
 
+import config
 from games import GameState, GameOutcomes
 
 
-C_PUCT = 1
-DEFAULT_TAU = 1.0
-MCTS_ITERATIONS = 100
 _STATES_PREDICTION_CACHE = {}
 _CACHE_HIT = {'yes': 0, 'no': 0}
 
@@ -50,7 +48,7 @@ class Node:
 
     def edges_value(self):
         nominator = np.sqrt(np.sum([edge.N for edge in self.edges]))
-        us = [C_PUCT * edge.P * nominator / (1 + edge.N) for edge in self.edges]
+        us = [config.C_PUCT * edge.P * nominator / (1 + edge.N) for edge in self.edges]
         return [edge.Q + ui for ui, edge in zip(us, self.edges)]
 
 
@@ -124,7 +122,7 @@ class Edge:
         return ps, v
 
 
-def mcts(tree: Node, max_iterations=MCTS_ITERATIONS):
+def mcts(tree: Node, max_iterations=config.MCTS_ITERATIONS):
     if _CACHE_HIT['yes'] or _CACHE_HIT['no']:
         print('Cache store:', len(_STATES_PREDICTION_CACHE))
         print('Cache hit: {:.2f}%'.format(100*_CACHE_HIT['yes']/(_CACHE_HIT['yes']+_CACHE_HIT['no'])))
@@ -140,7 +138,7 @@ def init_tree(initial_state: GameState, nn):
     return Node(initial_state, ps, nn)
 
 
-def compute_pi(tree: Node, tau=DEFAULT_TAU):
+def compute_pi(tree: Node, tau=config.DEFAULT_TAU):
     ns = np.array([edge.N for edge in tree.edges])
     ns_norm = ns**(1/tau)
     pi = np.zeros(tree.state.action_space_size())

@@ -1,9 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-
-RESIDUAL_BLOCKS = 5
-BASE_UNIT_NUMBER = 5
+import config
 
 
 class GameBoardModel(tf.keras.Model):
@@ -40,7 +38,7 @@ def new_model(game_state: type) -> GameBoardModel:
     action_mask = tf.keras.Input(game_state.action_space_size(), name='action_mask')
 
     x = conv_block(game_input)
-    for _ in range(RESIDUAL_BLOCKS):
+    for _ in range(config.RESIDUAL_BLOCKS):
         x = residual_block(x)
 
     policy_head = tf.keras.layers.Conv2D(2, (1, 1), padding='same')(x)
@@ -54,7 +52,7 @@ def new_model(game_state: type) -> GameBoardModel:
     value_head = tf.keras.layers.BatchNormalization()(value_head)
     value_head = tf.keras.layers.ReLU()(value_head)
     value_head = tf.keras.layers.Flatten()(value_head)
-    value_head = tf.keras.layers.Dense(BASE_UNIT_NUMBER, activation='relu')(value_head)
+    value_head = tf.keras.layers.Dense(config.BASE_UNIT_NUMBER, activation='relu')(value_head)
     value_head = tf.keras.layers.Dense(1, activation='tanh', name='value_head')(value_head)
 
     model = GameBoardModel([game_input, action_mask], [policy_head, value_head])
@@ -66,7 +64,7 @@ def new_model(game_state: type) -> GameBoardModel:
 
 
 def conv_block(x):
-    x = tf.keras.layers.Conv2D(BASE_UNIT_NUMBER, (3, 3), padding='same')(x)
+    x = tf.keras.layers.Conv2D(config.BASE_UNIT_NUMBER, (3, 3), padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
     return x
@@ -75,7 +73,7 @@ def conv_block(x):
 def residual_block(x):
     x_init = x
     x = conv_block(x)
-    x = tf.keras.layers.Conv2D(BASE_UNIT_NUMBER, (3, 3), padding='same')(x)
+    x = tf.keras.layers.Conv2D(config.BASE_UNIT_NUMBER, (3, 3), padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Add()([x, x_init])
     x = tf.keras.layers.ReLU()(x)
