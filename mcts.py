@@ -85,7 +85,11 @@ class Node:
         return self.edges[best_action_idx].expand()
 
     def take_action(self, action):
-        edge = [edge for edge in self.edges if edge.action == action][0]
+        candidates = [edge for edge in self.edges if edge.action == action]
+        if len(candidates) == 0:
+            raise ValueError(f"Action {action} not allowed in state {str(self.state)}")
+        edge = candidates[0]
+        edge.expand()
         return edge.node
 
     def cache_leaf_nodes(self):

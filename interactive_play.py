@@ -3,14 +3,16 @@ from argparse import ArgumentParser
 import numpy as np
 
 from games import games, GameState, GameOutcomes
-from mcts import init_tree, mcts
+from selfplay import sample_action
+from mcts import MCTS
+from neural_network import new_model
 
 
-def interactive_play(nn, game: GameState, start, **game_args):
+def interactive_play(game: GameState, nn, start, **game_args):
     game_outcome = None
 
     state = game.init(**game_args)
-    tree = init_tree(state, nn)
+    mcts = MCTS(game, nn)
     turn = -1 if start else 0
 
     while game_outcome is None:
@@ -21,25 +23,24 @@ def interactive_play(nn, game: GameState, start, **game_args):
         if is_player_turn:
             print("Turn {}".format(turn//2))
             print(str(state))
-            edge = None
-            while edge is None:
-                move = int(input("What's your next move? (0..6): "))
-                possible_edges = [edge for edge in tree.edges if edge.action == move]
-                if len(possible_edges) == 0:
+            valid_action = False
+            while valid_action is False:
+                action = int(input("What's your next move? (0..6): "))
+                try:
+                    mcts.next_turn(action)
+                    valid_action = True
+                except ValueError:
                     print("Invalid action, pick another one")
-                else:
-                    edge = possible_edges[0]
-                    edge.expand()
-            action = edge.action
-            tree = edge.node
-            state = tree.state
-        else:
-            optimal_pi = mcts(tree)
+                    valid_action = False
 
-            edge = sample_edge(tree, optimal_pi)
-            action = edge.action
-            tree = edge.node
-            state = tree.state
+            state = state.take_action(action)
+
+        else:
+            optimal_pi = mcts.search()
+
+            action = sample_action(state, optimal_pi)
+            mcts.next_turn(action)
+            state = state.take_action(action)
 
         game_outcome = state.game_outcome(last_move=action)
 
@@ -59,14 +60,6 @@ def sample_edge(tree, optimal_pi):
     return np.random.choice(tree.edges, p=optimal_pi)
 
 
-class NNMock:
-    def train(*args, **kwargs):
-        pass
-
-    def evaluate(*args, **kwargs):
-        return np.random.random(7), np.random.choice(7)
-
-
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
@@ -79,4 +72,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    interactive_play(NNMock(), games[args.game], start=(not args.no_start))
+    game = games[args.game]
+    nn = new_model(game)
+    interactive_play(game, nn, start=(not args.no_start))
