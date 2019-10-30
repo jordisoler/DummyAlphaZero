@@ -2,7 +2,7 @@ import numpy as np
 from time import time
 
 from games import GameState, GameOutcomes
-from mcts import init_tree, mcts
+from mcts import MCTS
 
 
 def selfplay(nn, game: GameState, **game_args):
@@ -11,7 +11,7 @@ def selfplay(nn, game: GameState, **game_args):
     game_outcome = None
 
     state = game.init(**game_args)
-    tree = init_tree(state, nn)
+    mcts = MCTS(game, nn)
     turn = -1
 
     times = [time()]
@@ -21,15 +21,14 @@ def selfplay(nn, game: GameState, **game_args):
             print("Turn {}".format(turn))
             print(str(state))
 
-        optimal_pi = mcts(tree)
+        optimal_pi = mcts.search()
 
         states.append(state)
         optimal_pis.append(optimal_pi)
 
-        edge = sample_edge(tree, optimal_pi)
-        action = edge.action
-        tree = edge.node
-        state = tree.state
+        action = sample_action(state, optimal_pi)
+        mcts.next_turn(action)
+        state = state.take_action(action)
 
         game_outcome = state.game_outcome(last_move=action)
         t_i = time()
@@ -54,9 +53,9 @@ def selfplay(nn, game: GameState, **game_args):
     nn.fit_game_state(states, optimal_pis, z)
 
 
-def sample_edge(tree, optimal_pi):
-    masked_optimal_pi = optimal_pi[tree.state.possible_actions_mask()]
-    return np.random.choice(tree.edges, p=masked_optimal_pi)
+def sample_action(state, optimal_pi):
+    masked_optimal_pi = optimal_pi[state.possible_actions_mask()]
+    return np.random.choice(state.possible_actions(), p=masked_optimal_pi)
 
 
 if __name__ == "__main__":

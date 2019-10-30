@@ -6,10 +6,6 @@ import config
 from games import GameState, GameOutcomes
 
 
-_STATES_PREDICTION_CACHE = {}
-_CACHE_HIT = {'yes': 0, 'no': 0}
-
-
 class Node:
     def __init__(self, state: GameState, probabilities, nn):
         self.state = state
@@ -21,22 +17,26 @@ class Node:
         else:
             self.edges = []
 
-    def expand(self):
+    def expand(self, cache):
         if len(self.edges) > 1:
             best_action_idx = np.argmax(self.edges_value())
         else:
             best_action_idx = 0
 
-        return self.edges[best_action_idx].expand()
+        return self.edges[best_action_idx].expand(cache)
 
-    def cache_leaf_nodes(self):
+    def take_action(self, action):
+        edge = [edge for edge in self.edges if edge.action == action][0]
+        return edge.node
+
+    def cache_leaf_nodes(self, cache):
         leaf_states = list(self.get_leaf_states())
-        to_request = [state for state in leaf_states if hash(state) not in _STATES_PREDICTION_CACHE]
+        to_request = [state for state in leaf_states if state not in cache]
         if to_request:
             ps, vs = self.nn.predict_from_states(to_request)
 
             for state, p, v in zip(to_request, ps, vs):
-                _STATES_PREDICTION_CACHE[hash(state)] = (p, v)
+                cache.store_state(state, (p, v))
 
     def get_leaf_states(self, depth=2):
         values = np.argsort(self.edges_value())[-depth:]
@@ -61,7 +61,7 @@ class TerminalNode(Node):
         }[game_outcome]
         super().__init__(state, [], None)
 
-    def expand(self):
+    def expand(self, cache):
         return self.v
 
     def get_leaf_states(self):
@@ -79,18 +79,18 @@ class Edge:
         self.Q = 0
         self.P = p
 
-    def expand(self):
+    def expand(self, cache):
         if self.node is None:
-            v = self.create_node()
+            v = self.create_node(cache)
         else:
-            v = self.node.expand()
+            v = self.node.expand(cache)
 
         self.N += 1
         self.W -= v
         self.Q = self.W/self.N
         return -v
 
-    def create_node(self):
+    def create_node(self, cache):
         if self.node is not None:
             raise Exception("Can't create a node. Already having a non null one")
 
@@ -98,11 +98,11 @@ class Edge:
         outcome = new_state.game_outcome(last_move=self.action)
 
         if outcome is None:
-            ps, v = self.get_state_prediction(new_state)
+            ps, v = self.get_state_prediction(new_state, cache)
             self.node = Node(new_state, ps, self.nn)
         else:
             self.node = TerminalNode(new_state, outcome)
-            v = self.node.expand()
+            v = self.node.expand(cache)
         return v
 
     def get_leaf_states(self):
@@ -111,29 +111,70 @@ class Edge:
         else:
             return self.node.get_leaf_states()
 
-    def get_state_prediction(self, state):
-        h_state = hash(state)
-        if h_state in _STATES_PREDICTION_CACHE:
-            ps, v = _STATES_PREDICTION_CACHE[h_state]
-            _CACHE_HIT['yes'] += 1
+    def get_state_prediction(self, state, cache):
+        prediction = cache.get_state_output(state)
+        if prediction is None:
+            prediction = self.nn.predict_from_state(state)
+        return prediction
+
+
+class MCTS:
+    def __init__(self, game, nn, max_iterations=config.MCTS_ITERATIONS):
+        self.nn = nn
+        self.max_iterations = max_iterations
+        self.cache = StatesCache()
+        self.tree = init_tree(game, nn)
+
+    def search(self):
+        print(f"Cache status: {self.cache}")
+
+        for i in range(self.max_iterations):
+            if i % 10 == 0:
+                self.tree.cache_leaf_nodes(self.cache)
+            self.tree.expand(self.cache)
+        return compute_pi(self.tree)
+
+    def next_turn(self, action):
+        self.tree = self.tree.take_action(action)
+
+
+class StatesCache:
+    def __init__(self):
+        self._cache = {}
+        self.requested = 0
+        self.found = 0
+
+    def __len__(self):
+        return len(self._cache)
+
+    def __contains__(self, state):
+        return hash(state) in self._cache
+
+    def __repr__(self):
+        return f"<StatesCache | {len(self)} elements | {100*self.hit:.1f}% hit>"
+
+    @property
+    def hit(self):
+        if self.requested:
+            hit = self.found / (self.found+self.requested)
         else:
-            ps, v = self.nn.predict_from_state(state)
-            _CACHE_HIT['no'] += 1
-        return ps, v
+            hit = np.nan
+        return hit
+
+    def get_state_output(self, state: GameState):
+        self.requested += 1
+
+        h_state = hash(state)
+        if h_state in self._cache:
+            self.found += 1
+            return self._cache[h_state]
+
+    def store_state(self, state, result):
+        self._cache[hash(state)] = result
 
 
-def mcts(tree: Node, max_iterations=config.MCTS_ITERATIONS):
-    if _CACHE_HIT['yes'] or _CACHE_HIT['no']:
-        print('Cache store:', len(_STATES_PREDICTION_CACHE))
-        print('Cache hit: {:.2f}%'.format(100*_CACHE_HIT['yes']/(_CACHE_HIT['yes']+_CACHE_HIT['no'])))
-    for i in range(max_iterations):
-        if i % 10 == 0:
-            tree.cache_leaf_nodes()
-        tree.expand()
-    return compute_pi(tree)
-
-
-def init_tree(initial_state: GameState, nn):
+def init_tree(game: type, nn):
+    initial_state = game.init()
     ps, _ = nn.predict_from_state(initial_state)
     return Node(initial_state, ps, nn)
 
