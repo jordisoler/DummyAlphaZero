@@ -15,6 +15,10 @@ class GameBoardModel(tf.keras.Model):
         }
         self.fit(X, y)
 
+    def predict_from_states(self, game_states):
+        X = self.input_from_state(game_states)
+        return self.predict(X)
+
     def predict_from_state(self, game_state):
         X = self.input_from_state([game_state])
         prediction = self.predict(X)

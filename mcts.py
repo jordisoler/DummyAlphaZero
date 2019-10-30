@@ -1,3 +1,5 @@
+from itertools import chain
+
 import numpy as np
 
 from games import GameState, GameOutcomes
@@ -5,7 +7,9 @@ from games import GameState, GameOutcomes
 
 C_PUCT = 1
 DEFAULT_TAU = 1.0
-MCTS_ITERATIONS = 200
+MCTS_ITERATIONS = 100
+_STATES_PREDICTION_CACHE = {}
+_CACHE_HIT = {'yes': 0, 'no': 0}
 
 
 class Node:
@@ -20,14 +24,34 @@ class Node:
             self.edges = []
 
     def expand(self):
-        nominator = np.sqrt(np.sum([edge.N for edge in self.edges]))
         if len(self.edges) > 1:
-            us = [C_PUCT * edge.P * nominator / (1 + edge.N) for edge in self.edges]
-            best_action_idx = np.argmax([edge.Q + ui for ui, edge in zip(us, self.edges)])
+            best_action_idx = np.argmax(self.edges_value())
         else:
             best_action_idx = 0
 
         return self.edges[best_action_idx].expand()
+
+    def cache_leaf_nodes(self):
+        leaf_states = list(self.get_leaf_states())
+        to_request = [state for state in leaf_states if hash(state) not in _STATES_PREDICTION_CACHE]
+        if to_request:
+            ps, vs = self.nn.predict_from_states(to_request)
+
+            for state, p, v in zip(to_request, ps, vs):
+                _STATES_PREDICTION_CACHE[hash(state)] = (p, v)
+
+    def get_leaf_states(self, depth=2):
+        values = np.argsort(self.edges_value())[-depth:]
+        return chain.from_iterable(
+            edge.get_leaf_states()
+            for idx, edge in enumerate(self.edges)
+            if idx in values
+        )
+
+    def edges_value(self):
+        nominator = np.sqrt(np.sum([edge.N for edge in self.edges]))
+        us = [C_PUCT * edge.P * nominator / (1 + edge.N) for edge in self.edges]
+        return [edge.Q + ui for ui, edge in zip(us, self.edges)]
 
 
 class TerminalNode(Node):
@@ -41,6 +65,9 @@ class TerminalNode(Node):
 
     def expand(self):
         return self.v
+
+    def get_leaf_states(self):
+        return []
 
 
 class Edge:
@@ -73,16 +100,37 @@ class Edge:
         outcome = new_state.game_outcome(last_move=self.action)
 
         if outcome is None:
-            ps, v = self.nn.predict_from_state(new_state)
+            ps, v = self.get_state_prediction(new_state)
             self.node = Node(new_state, ps, self.nn)
         else:
             self.node = TerminalNode(new_state, outcome)
             v = self.node.expand()
         return v
 
+    def get_leaf_states(self):
+        if self.node is None:
+            return [self.parent_state.take_action(self.action)]
+        else:
+            return self.node.get_leaf_states()
+
+    def get_state_prediction(self, state):
+        h_state = hash(state)
+        if h_state in _STATES_PREDICTION_CACHE:
+            ps, v = _STATES_PREDICTION_CACHE[h_state]
+            _CACHE_HIT['yes'] += 1
+        else:
+            ps, v = self.nn.predict_from_state(state)
+            _CACHE_HIT['no'] += 1
+        return ps, v
+
 
 def mcts(tree: Node, max_iterations=MCTS_ITERATIONS):
-    for _ in range(max_iterations):
+    if _CACHE_HIT['yes'] or _CACHE_HIT['no']:
+        print('Cache store:', len(_STATES_PREDICTION_CACHE))
+        print('Cache hit: {:.2f}%'.format(100*_CACHE_HIT['yes']/(_CACHE_HIT['yes']+_CACHE_HIT['no'])))
+    for i in range(max_iterations):
+        if i % 10 == 0:
+            tree.cache_leaf_nodes()
         tree.expand()
     return compute_pi(tree)
 

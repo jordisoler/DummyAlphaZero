@@ -16,6 +16,9 @@ class CounterGame(GameState):
         self.count_b = count_b
         self.N = N
 
+    def __hash__(self):
+        return hash((self.count_a, self.count_b))
+
     @classmethod
     def init(cls):
         return cls()
