@@ -32,16 +32,20 @@ def selfplay(nn, game: GameState, **game_args):
 
         game_outcome = state.game_outcome(last_move=action)
         t_i = time()
-        print("Move time: {}".format(t_i - times[-1]))
+        print("Move time: {:.2f}s".format(t_i - times[-1]))
         times.append(t_i)
 
-    print("Final turn {}".format(turn))
-    print("Total time {}".format(times[-1] - times[0]))
-    print(str(state))
+    print(f"Final turn: {turn}")
+    print("Total time: {:.2f}s".format(times[-1] - times[0]))
     if game_outcome == GameOutcomes.DRAW:
-        print("It was a draw!!")
+        print("It's a draw!!")
+    elif turn % 2 == 0:
+        print("First player wins!")
+        print(str(state))
     else:
-        print(("First" if turn % 2 == 0 else "Second") + " player won")
+        print("Second player wins!")
+        state.inverse()
+        print(str(state))
 
     if game_outcome == GameOutcomes.DRAW:
         z = [0]*len(states)
